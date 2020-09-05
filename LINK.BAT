@@ -1,0 +1,1 @@
+tlink /t printf.obj stringf.obj
