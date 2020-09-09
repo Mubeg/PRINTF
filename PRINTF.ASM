@@ -4,10 +4,11 @@ org 100h
 
 color = 07h
 stepen = 3
+screen_width = 80
+height = 25
 
 public printf
 extrn  memcpy_add_attr:proc
-extrn            strchr:proc
 extrn  strcpy_add_attr:proc
 extrn           str2chr:proc
 
@@ -15,10 +16,17 @@ start:
 	mov ax, 0b800h
 	mov es, ax
 
-	push 12345
-	mov cx, 1000
-	mov dx, 19
-	mov si, offset input_string
+	push offset input_string
+	push 230
+	push 9
+	push 88
+	push 777
+	push 6666
+	push 55555
+	push 4444
+	mov cx, 333
+	mov dx, 22
+	mov si, 1
 	mov di, offset format_string
 	call printf
 
@@ -71,7 +79,7 @@ printf proc
 	mov si, di
 
 	mov al, dh
-	mov bl, 0a0h
+	mov bl, screen_width*2
 	mul bl
 	mov dh, 0h
 	add dl, dl
@@ -230,21 +238,21 @@ do_new_line:
 	push bx
 
 	mov ax, di
-	mov bl, 0a0h
+	mov bl, screen_width*2
 	div bl
 
-	cmp al, 24
+	cmp al, height - 1
 	jl no_scroll_NL
 	push ax cx dx
 	mov ah, 06h
 	mov al, 01h
 	mov cx, 0000h
-	mov dh, 24
-	mov dl, 79
+	mov dh, height - 1
+	mov dl, screen_width - 1
 	int 10h
 	pop dx cx ax
 
-	sub di, 160
+	sub di, screen_width*2
 
 no_scroll_NL:
 
@@ -262,7 +270,7 @@ do_ret_carr:
 	push bx
 
 	mov ax, di
-	mov bl, 0a0h
+	mov bl, screen_width*2
 	div bl
 
 	mov al, ah
@@ -300,7 +308,7 @@ finish:
 
 done:
 	mov ax, di
-	mov bl, 0a0h
+	mov bl, screen_width*2
 	div bl
 
 	mov dh, al
@@ -334,17 +342,17 @@ endp
 ;---------------------------------------------------;
 do_scroll_or_not proc
 
-	cmp di, 4000
+	cmp di, screen_width*height*2
 	jl no_scroll
 	push ax cx dx
 	mov ah, 06h
 	mov al, 01h
 	mov cx, 0000h
-	mov dh, 24
-	mov dl, 79
+	mov dh, height - 1
+	mov dl, screen_width - 1
 	int 10h
 	pop dx cx ax
-	sub di, 160
+	sub di, screen_width*2
 no_scroll:
 
 ret
@@ -464,7 +472,7 @@ endp
 
 .data
 ascii_table_decimal:	db '0123456789ABCDEF'
-format_string: 		db 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHello, %s\\! \rYour %% age is [%d]. {%f} = %d\nlalaq', 0
-input_string:  		db 'Nikitalllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaallllllllllllllllllllllllllllllka', 0
+format_string: 		db 'Hello #1 [%d], #2 [%d], #3 [%d], #4 [%d], #5 [%d], #6 [%d], #7 [%d], #8 [%d], #9 [%d], #10 [%f], %s!', 0
+input_string:  		db 'Nikita', 0
 
 end	 start
