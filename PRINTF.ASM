@@ -115,7 +115,8 @@ not_finish:
 	
 	cmp bx, '%'	; found '%' or '\'
 	pop bx
-	jne commands
+	je formating
+	jmp commands
 
 formating:
 	lodsb
@@ -137,6 +138,9 @@ formating:
 			; di = out:adr
 			; ax - destroyed
 do_pointer:
+
+	call do_scroll_or_not
+
 	mov ax, '0x'
 	stosw
 	mov ax, cx	; print "0x%ADDR%"
@@ -152,23 +156,30 @@ do_string:
 	jmp end_switch_form
 
 do_char:
+
+	call do_scroll_or_not
+
 	mov al, cl
 	mov ah, color
 	stosw
 	jmp end_switch_form
 
 do_decimal:
+	call do_scroll_or_not
 	mov ax, cx
 	stosw
 	jmp end_switch_form
 
 do_float:
 
+	call do_scroll_or_not
+
 	mov ax, cx
 	stosw
 	jmp end_switch_form
 
 do_%:
+	call do_scroll_or_not
 	mov al, '%'
 	mov ah, color
 	stosw
@@ -219,6 +230,21 @@ do_new_line:
 	mov ax, di
 	mov bl, 0a0h
 	div bl
+
+	cmp al, 24
+	jl no_scroll_NL
+	push ax cx dx
+	mov ah, 06h
+	mov al, 01h
+	mov dx, 0000h
+	mov ch, 24
+	mov cl, 79
+	int 10h
+	pop dx cx ax
+
+	sub di, 160
+
+no_scroll_NL:
 
 	mov al, ah
 	mov ah, 0h
@@ -287,32 +313,34 @@ done:
 	mov ax, 0200h
 	int 10h 		; set cursor to end
 
-
-	cmp dh, 25
-	jl no_scroll
-
-	mov ax, 0500h
-	int 10h
-;	mov al, dh
-;mov al, 2;	sub al, 25
-;	mov ah, 6h
-;	mov bh, color
-;	mov dx, 0h
-;	mov ch, 24
-;	mov cl, 79
-;	int 10h  ; scroll 
-
-no_scroll:
 	mov sp, bp
 	pop bp
 	ret
 
 endp
 
+do_scroll_or_not proc
+
+	cmp di, 4000
+	jl no_scroll
+	push ax cx dx
+	mov ah, 06h
+	mov al, 01h
+	mov dx, 0000h
+	mov ch, 24
+	mov cl, 79
+	int 10h
+	pop dx cx ax
+	sub di, 160
+no_scroll:
+
+ret
+endp
+
 
 
 .data
-format_string: 		db 'Hello, %s\\! \rYour %% age is [%d]. {%f} = %d\nlalaq', 0
-input_string:  		db 'Nikitalllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaallllllllllllllllllllllllllllllka',
+format_string: 		db 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHello, %s\\! \rYour %% age is [%d]. {%f} = %d\nlalaq', 0
+input_string:  		db 'Nikitalllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaallllllllllllllllllllllllllllllka', 0
 
 end	 start
