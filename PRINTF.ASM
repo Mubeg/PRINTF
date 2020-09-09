@@ -3,6 +3,7 @@
 org 100h
 
 color = 07h
+stepen = 3
 
 public printf
 extrn  memcpy_add_attr:proc
@@ -14,9 +15,9 @@ start:
 	mov ax, 0b800h
 	mov es, ax
 
-	push 2222
-	mov cx, 1231
-	mov dx, 2222
+	push 12345
+	mov cx, 1000
+	mov dx, 19
 	mov si, offset input_string
 	mov di, offset format_string
 	call printf
@@ -165,17 +166,18 @@ do_char:
 	jmp end_switch_form
 
 do_decimal:
-	call do_scroll_or_not
 	mov ax, cx
-	stosw
+	push bx si
+	call decimal_to_ascii
+	pop si bx
 	jmp end_switch_form
 
 do_float:
 
-	call do_scroll_or_not
-
 	mov ax, cx
-	stosw
+	push bx si
+	call float_to_ascii
+	pop si bx
 	jmp end_switch_form
 
 do_%:
@@ -192,12 +194,12 @@ end_switch_form:
 	jl get_local_mem
 
 	mov ax, bx
-	sub ax, 1			;             word    n_param   push bp ret
-	add ax, ax			;	            |         |      |   |
-	add bp, ax			;               |         |      |   |
+	sub ax, 1			;     word  n_param  push bp ret
+	add ax, ax			;       |         |      |   |
+	add bp, ax			;       |         |      |   |
 	mov cx, word ptr [bp]		; [bp + 2 * (bx - 3)  +  2 + 2]
 	sub bp, ax	
-				; cx = next_param
+					; cx = next_param
 	jmp find_%or_slash
 
 get_local_mem:
@@ -236,9 +238,9 @@ do_new_line:
 	push ax cx dx
 	mov ah, 06h
 	mov al, 01h
-	mov dx, 0000h
-	mov ch, 24
-	mov cl, 79
+	mov cx, 0000h
+	mov dh, 24
+	mov dl, 79
 	int 10h
 	pop dx cx ax
 
@@ -273,6 +275,7 @@ do_ret_carr:
 do_slash:
 	mov al, '\'
 	mov ah, color
+	call do_scroll_or_not
 	stosw
 	jmp find_%or_slash
 	
@@ -319,6 +322,16 @@ done:
 
 endp
 
+
+;---------------------------------------------------;
+;In
+;	NONE
+;Out
+;	NONE
+;Modified
+;	di -= 160 if di >= 4000
+;Scroll page up by one line
+;---------------------------------------------------;
 do_scroll_or_not proc
 
 	cmp di, 4000
@@ -326,9 +339,9 @@ do_scroll_or_not proc
 	push ax cx dx
 	mov ah, 06h
 	mov al, 01h
-	mov dx, 0000h
-	mov ch, 24
-	mov cl, 79
+	mov cx, 0000h
+	mov dh, 24
+	mov dl, 79
 	int 10h
 	pop dx cx ax
 	sub di, 160
@@ -338,8 +351,119 @@ ret
 endp
 
 
+;---------------------------------------------------;
+;In
+;	ax - number
+;	es - seg of output
+;	di - addr of output
+;Out
+;	NONE
+;Modified
+;	di = di + number_length_in_ascii
+;Destoyed
+;	ax bx cx dx si
+;---------------------------------------------------;
+decimal_to_ascii proc
+
+	mov bx, 10
+	mov cx, 0
+
+decimal_to_ascii_loop:
+
+	mov dx, 0
+	div bx
+
+	mov si, dx
+	mov dl, byte ptr [si + offset ascii_table_decimal] 
+	mov dh, color
+	push dx
+	inc cx
+
+	cmp ax, 0
+	je decimal_loop_end
+
+	jmp decimal_to_ascii_loop
+
+decimal_loop_end:
+
+	cmp cx, 0
+	je fast_loop_end
+fast_loop:
+	pop ax
+	call do_scroll_or_not
+	stosw	
+	loop fast_loop
+
+fast_loop_end:
+
+	ret
+endp
+
+
+;---------------------------------------------------;
+;In
+;	ax - number
+;	es - seg of output
+;	di - addr of output
+;Out
+;	NONE
+;Modified
+;	di = di + number_length_in_ascii
+;Destoyed
+;	ax bx cx dx si
+;---------------------------------------------------;
+float_to_ascii proc
+
+	mov bx, 10
+	mov cx, 0
+
+float_to_ascii_loop:
+
+	mov dx, 0
+	div bx
+
+	mov si, dx
+	mov dl, byte ptr [si + offset ascii_table_decimal] 
+	mov dh, color
+
+	push dx
+	inc cx
+
+	cmp cx, stepen
+	jne float_no_comma
+	mov dl, ','
+	mov dh, color
+	push dx
+	inc cx
+	jmp float_comma
+
+float_no_comma:
+	cmp ax, 0
+	je float_loop_end
+
+float_comma:
+	jmp float_to_ascii_loop
+
+float_loop_end:
+
+	cmp cx, 0
+	je fast_loop_2_end
+fast_loop_2:
+	pop ax
+	call do_scroll_or_not
+	stosw	
+	loop fast_loop_2
+
+fast_loop_2_end:
+
+	ret
+
+endp
+
+
 
 .data
+ascii_table_decimal:	db '0123456789ABCDEF'
 format_string: 		db 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHello, %s\\! \rYour %% age is [%d]. {%f} = %d\nlalaq', 0
 input_string:  		db 'Nikitalllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaallllllllllllllllllllllllllllllka', 0
 
